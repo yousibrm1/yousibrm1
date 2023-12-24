@@ -1,0 +1,210 @@
+cd"/Users/yousibrm/Desktop/Econométrie/projet"
+use"base1.dta"
+clear
+
+drop if region==.
+drop if age==.
+drop if sexe==.
+drop if imc==.
+drop if diplome==.
+drop if csp==.
+drop if nbenfants==.
+drop if fume==.
+drop if etat_sante==.
+drop if evie==.
+drop if statut==.
+
+** Quel est votre indice de masse corporelle (poids / taille en m au carré?)**
+codebook imc
+sum imc,d
+keep if inrange(imc,r(p1),r(p99))
+drop if imc>40
+qnorm IMC
+histogram imc, frequency fcolor(navy8) lcolor(cyan) ytitle(Population) xtitle(Indice Masse Corporelle)
+gen lnimc=ln(imc)
+sum lnimc, d
+qnorm lnimc
+histogram lnimc, frequency fcolor(navy8) lcolor(cyan) ytitle(Population) xtitle(Indice Masse Corporelle)
+rename imc IMC
+gen lnIMC=ln(IMC)
+histogram lnIMC, frequency fcolor(navy8) lcolor(cyan) ytitle(Population) xtitle(Indice Masse Corporelle)
+sum lnIMC,d
+qnorm lnIMC 
+*** je veux que le tableau m'affiche en colonne le type de variable, la moyenne, l'écart type*** comment je fais??
+sum revenu diplome fume age alcool region sexe, stats(N mean(%9.2f) sd min(%9.0g) median(%9.0g) max(%9.0))  
+
+**Revenu de l'individu**
+
+codebook revenu 
+sum revenu,d
+keep if inrange(revenu, r(p1), r(p99))
+drop if revenu>3500
+histogram revenu, frequency fcolor(navy8) lcolor(cyan) ytitle(Population) xtitle(Revenu Mensuel)
+**Quel est votre âge ?**
+
+codebook age
+sum age, d
+histogram age, frequency fcolor(navy8) lcolor(cyan) ytitle(Population) xtitle(Age)
+
+** Quel est votre plus haut diplôme obtenu ?**
+
+codebook diplome
+sum diplome,d
+tab diplome
+tab diplome
+
+label define label_diplome 1 "Aucun Diplome" 2 "CEP" 3 "BEPC,brevet" 4"CAP" 5 "Bac général" 6 "Bac tech" 7 "BTS,DUT" 8 ">Bac+3"
+label values diplome label_diplome
+
+gen diplome_bise=0
+replace diplome_bise=1 if diplome==1|diplome==2
+replace diplome_bise=2 if diplome==3|diplome==4
+replace diplome_bise=3 if diplome==5|diplome==6
+replace diplome_bise=4 if diplome==7
+replace diplome_bise=5 if diplome==8
+label define label_diplome_bise 1 "Aucun Diplome" 2 "Brevet/CAP" 3 "Bac" 4 "Bac+2" 5 ">Bac+3"
+label values diplome_bise label_diplome_bise
+graph bar, over (diplome_bise)
+tab diplome_bise
+label variable diplome_bise "Niveau d'Etude"
+tab diplome_bise
+
+codebook fume
+tab fume
+gen fume_bis=0
+replace fume_bis=1 if fume==4
+replace fume_bis=2 if fume==1|fume==3
+replace fume_bis=3 if fume==2
+label define label_fume_bis 1 "Non Fumeur" 2 "Fumeur" 3 "Ancien Fumeur"
+label values fume_bis label_fume_bis
+graph bar, over (fume_bis)
+label variable fume_bis "statut tabagique des individus"
+tab fume_bis
+
+
+drop if alcool>=6
+tab alcool
+gen alcool_bise=0
+replace alcool_bise=1 if alcool==1|alcool==2
+replace alcool_bise=2 if alcool==3
+replace alcool_bise=3 if alcool==4
+replace alcool_bise=4 if alcool==5
+label define label_alcool_bise 1 "Jamais" 2 "2-4 par mois" 3 "2-3 par semaine" 4 ">=4 par semaine" 
+label values alcool_bise label_alcool_bise
+label variable alcool_bise "la fréquence de consommation d'alcool"
+tab alcool_bise
+graph bar, over (alcool_bise)
+
+
+codebook sexe,m
+tab sexe,m
+gen sexe_bise=sexe+1
+label define label_sexe_bise 1 "Femme" 2 "Homme"
+label values sexe_bise label_sexe_bise
+label variable sexe_bise "le genre de la personne interrogée"
+tab sexe_bise, m
+graph bar, over(sexe_bise)
+
+** I-3: Statitistique descriptives bivariées:**
+** lninm et revenu**
+
+twoway(scatter lnIMC revenu) (qfit lnIMC revenu) (lfit lnIMC revenu)
+
+pwcorr lnIMC revenu
+scatter lnIMC revenu
+
+xtile reve=revenu, nq(20)
+bysort reve: egen moy_exp=mean(lnIMC)
+
+** je sais pas à quoi ça sert
+*****twoway(scatter moy_IMC reve) (qfit moy_IMC reve) (lfit moy_IMC reve)*****
+
+** lninm et age**
+
+xtile ag=age, nq(20)
+bysort ag: egen moy_IMC=mean(lnIMC)
+twoway(scatter moy_IMC ag, title("Imc moyen par age")) (qfit moy_IMC ag) (lfit moy_IMC ag)
+
+xtile revenue=revenu, nq(20)
+bysort revenue: egen moy_IMCE=mean(lnIMC)
+twoway(scatter moy_exp rev) (qfit moy_exp rev) (lfit moy_IMC rev)
+bysort revenu : gen tata = 20 if _n==1
+l rev moy_exp if tata ==20
+
+
+graph bar (mean) lnIMC, over(sexe_bise) title(IMC Moyen par sexe del'individu)
+graph bar (mean) lnIMC, over(diplome_bise) title(lnimc Moyen)
+graph bar (mean) lnIMC, over(alcool_bise) title(lnimc moyen)
+graph bar (mean) lnIMC , over(fume_bis) title(IMC moyen par statut tabagique)
+
+** une première regression avant la partie 2 pour envoyer à la dame**
+reg lnimc i.fume_bis age2 age i.sexe_bise i.diplome_bise revenu i.alcool_bise
+
+reg lnimc i.fume_bis age2 age i.sexe_bise i.diplome_bise
+
+
+* 2 Résultats des MCO
+reg lnimc i.fume_bis
+*voir la corrélation entre ma variable d'interet et les autres
+
+pwcorr fume revenu
+pwcorr fume alcool
+pwcorr fume age
+pwcorr fume sexe
+pwcorr fume diplome
+
+reg lnimc i.fume_bis age2 age i.sexe_bise i.diplome_bise
+
+
+**test de gleiser**
+predict res, res
+gen res2 = res^2
+gen abs_res = abs(res)
+
+**coeff -1
+gen lnimc_inv=1/(lnimc)
+**coeff 0.5
+gen lnimc_sqrt=sqrt(lnimc)
+**coeff -0.5
+gen lnimc_invsqrt=1/sqrt(lnimc)
+
+reg abs_res lnimc
+reg abs_res lnimc_inv
+reg abs_res lnimc_sqrt
+reg abs_res lnimc_invsqrt
+
+gen fume_bis2=i.fume_bis*i.fume_bis
+gen age22=age2*age2
+gen age2=age*age
+gen sexe_bise2=i.sexe_bise*i.sexe_bise
+gen diplome_bise2=i.diplome_bise*i.diplome_bise
+gen fume_bis_age2=i.fume_bis*age2
+gen fume_bis_age=i.fume_bis*age
+gen fume_bis_sexe_bise=i.fume_bis*i.sexe_bise
+gen fume_bis_diplome_bise=i.fume_bis*i.diplome_bise
+gen age2_age=age2*age
+gen age2_sexe_bise=age2*i.sexe_bise
+gen age2_diplome_bise=age2*i.diplome_bise
+gen age_sexe_bise=age*i.sexe_bise
+gen age_diplome_bise=age*i.diplome_bise
+gen sexe_bise_diplome_bise=i.sexe_bise*i.diplome_bise
+
+
+
+***test de Bresch pegan**
+reg res2 lny lny2 lnp lnp2 lny_lnp
+
+drop LM
+gen LM=46*0.3404
+dis LM
+
+estat hettest lny lnp, mtest
+
+reg lnc lny lnp
+estat imtest, preserve white
+
+reg lnimc i.fume_bis age2 age i.sexe_bise i.diplome_bise
+Heteroskedasticity test: Glejser
+
+
+
